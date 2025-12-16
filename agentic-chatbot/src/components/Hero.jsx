@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import "./../styles/hero.css";
-import chatbotvideo from './../assets/chatbot.mp4'
+import chatbotImage from './../assets/chatbot.png'
 
 export default function App() {
     const navigate = useNavigate();
@@ -23,12 +23,9 @@ export default function App() {
         </div>
       
       <div className="landing-right">
-  <video
-    src={chatbotvideo}
-    autoPlay
-    loop
-    muted
-    playsInline
+  <img
+    src={chatbotImage}
+    alt="chatbot"
   />
 </div>
     </div>

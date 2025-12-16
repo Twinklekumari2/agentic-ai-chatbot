@@ -22,23 +22,15 @@ const Navbar = () => {
             className={location.pathname === "/" ? "active" : ""} 
             onClick={() => navigate('/')}>Home</h3>
             <h3 
-            className={location.pathname === "/hospital" ? "active" : ""} 
-            onClick={() => navigate('/hospital')}>Chat-bot</h3>
+            className={location.pathname === "/caht" ? "active" : ""} 
+            onClick={() => navigate('/chat')}>Chat-bot</h3>
 
             <h3
-             className={location.pathname === "/ambulance" ? "active" : ""}  
-             onClick={() => navigate('/ambulance')}>Features</h3>
+             className={location.pathname === "/features" ? "active" : ""}  
+             onClick={() => navigate('/features')}>Features</h3>
             <h3 
             className={location.pathname === "/about-us" ? "active" : ""} 
             onClick={() => navigate('/about-us')}>About</h3>
-        </div>
-
-        {/* ----------- RIGHT SIDE ----------- */}
-        <div className='right-side'>
-            <h3 
-            className={location.pathname === "/login" ? "active" : ""} 
-            onClick={() => navigate('/login')}>Login</h3>
- 
         </div>
 
         
