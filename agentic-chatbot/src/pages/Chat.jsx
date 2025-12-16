@@ -3,93 +3,145 @@ import "./../styles/chat.css";
 
 export default function App() {
   const [messages, setMessages] = useState([
-    {
-      from: "bot",
-      text: "Hello! 👋 I’m Tata Capital’s virtual loan assistant. What is your monthly income?"
-    }
+    { from: "bot", text: "👋 Welcome! I’m your AI Loan Assistant. What is your monthly salary?" }
   ]);
-  const [input, setInput] = useState("");
-  const [step, setStep] = useState("income");
-  const [userData, setUserData] = useState({});
 
-  const addMessage = (from, text) => {
-    setMessages((prev) => [...prev, { from, text }]);
+  const [input, setInput] = useState("");
+  const [step, setStep] = useState("salary");
+
+  const [data, setData] = useState({
+    salary: 0,
+    amount: 0,
+    tenure: 0,
+    creditScore: 0,
+    preApproved: 500000
+  });
+
+  const add = (from, text) =>
+    setMessages((m) => [...m, { from, text }]);
+
+  /* -------------------- AGENTS -------------------- */
+
+  const kycAgent = () => ({ status: "Verified" });
+
+  const creditAgent = () => ({ score: 760 });
+
+  const underwritingAgent = ({ salary, amount, creditScore, preApproved }) => {
+    if (creditScore < 700) return { status: "REJECT", reason: "Low credit score" };
+
+    if (amount <= preApproved) return { status: "INSTANT_APPROVAL" };
+
+    if (amount > 2 * preApproved)
+      return { status: "REJECT", reason: "Amount exceeds eligibility" };
+
+    const emi = amount / 36;
+    if (emi > salary * 0.5)
+      return { status: "REJECT", reason: "EMI exceeds 50% salary" };
+
+    return { status: "CONDITIONAL_APPROVAL" };
   };
 
-  // Worker Agents (Mock)
-  const kycAgent = () => ({ status: "Verified" });
-  const creditAgent = () => ({ score: 760 });
-  const underwritingAgent = (score) =>
-    score > 700 ? "Approved" : "Manual Review";
+  /* -------------------- CHAT FLOW -------------------- */
 
   const handleSend = () => {
     if (!input) return;
+    add("user", input);
 
-    addMessage("user", input);
+    /* SALES AGENT */
+    if (step === "salary") {
+      setData((d) => ({ ...d, salary: Number(input) }));
+      add("bot", "How much loan amount do you need?");
+      setStep("amount");
+    }
 
-    if (step === "income") {
-      setUserData({ income: input });
-      addMessage("bot", "Great! How much loan amount are you looking for?");
-      setStep("loan");
-    } else if (step === "loan") {
-      setUserData((prev) => ({ ...prev, loan: input }));
-      addMessage("bot", "Thanks! Verifying your KYC...");
+    else if (step === "amount") {
+      setData((d) => ({ ...d, amount: Number(input) }));
+      add("bot", "What tenure do you prefer (months)?");
+      setStep("tenure");
+    }
+
+    /* VERIFICATION AGENT */
+    else if (step === "tenure") {
+      setData((d) => ({ ...d, tenure: Number(input) }));
+      add("bot", "Verifying KYC...");
       setTimeout(() => {
         const kyc = kycAgent();
-        addMessage("bot", `KYC Status: ${kyc.status}`);
-        addMessage("bot", "Checking credit score...");
+        add("bot", `KYC Status: ${kyc.status}`);
+        add("bot", "Checking credit score...");
         setStep("credit");
       }, 800);
-    } else if (step === "credit") {
+    }
+
+    /* UNDERWRITING AGENT */
+    else if (step === "credit") {
       setTimeout(() => {
         const credit = creditAgent();
-        addMessage("bot", `Credit Score: ${credit.score}`);
-        const decision = underwritingAgent(credit.score);
-        addMessage("bot", `Loan Decision: ${decision}`);
-        addMessage("bot", " Generating sanction letter...");
-        setStep("done");
-      }, 800);
+        add("bot", `Credit Score: ${credit.score}`);
+
+        const decision = underwritingAgent({
+          ...data,
+          creditScore: credit.score
+        });
+
+        if (decision.status === "REJECT") {
+          add("bot", `❌ Loan Rejected: ${decision.reason}`);
+          setStep("done");
+          return;
+        }
+
+        if (decision.status === "INSTANT_APPROVAL") {
+          add("bot", "✅ Instant Approval! Generating sanction letter...");
+          setStep("approved");
+          return;
+        }
+
+        if (decision.status === "CONDITIONAL_APPROVAL") {
+          add("bot", "📄 Please upload your salary slip for final approval.");
+          setStep("salarySlip");
+        }
+      }, 1000);
+    }
+
+    /* CONDITIONAL APPROVAL */
+    else if (step === "salarySlip") {
+      add("bot", "Salary slip received ✅");
+      add("bot", "Final approval granted. Generating sanction letter...");
+      setStep("approved");
     }
 
     setInput("");
   };
 
+  /* -------------------- UI -------------------- */
+
   return (
     <div className="app-container">
-      <h2 className="title"> Agentic AI Loan Chatbot</h2>
+      <h2 className="title">🤖 Agentic AI Loan Chatbot</h2>
 
       <div className="chat-box">
         {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`message-row ${m.from === "bot" ? "bot" : "user"}`}
-          >
-            <span className={`message ${m.from}`}>
-              {m.text}
-            </span>
+          <div key={i} className={`row ${m.from}`}>
+            <span className={`msg ${m.from}`}>{m.text}</span>
           </div>
         ))}
       </div>
 
-      {step !== "done" && (
+      {step !== "approved" && step !== "done" && (
         <div className="input-area">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type here..."
-            className="chat-input"
           />
-          <button onClick={handleSend} className="send-btn">
-            Send
-          </button>
+          <button onClick={handleSend}>Send</button>
         </div>
       )}
 
-      {step === "done" && (
+      {step === "approved" && (
         <div className="sanction-box">
           <h3>✅ Sanction Letter</h3>
-          <p><b>Loan Amount:</b> ₹5,00,000</p>
-          <p><b>Tenure:</b> 36 Months</p>
+          <p><b>Loan Amount:</b> ₹{data.amount}</p>
+          <p><b>Tenure:</b> {data.tenure} months</p>
           <p><b>Interest Rate:</b> 10.5%</p>
           <p><b>Status:</b> Approved</p>
         </div>
