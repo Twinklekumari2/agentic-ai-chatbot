@@ -1,127 +1,126 @@
 import { useState } from "react";
+import axios from "axios";
 import "./../styles/chat.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faBackward } from "@fortawesome/free-solid-svg-icons";
+import { useNavigate } from "react-router-dom";
 
 export default function App() {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([
-    { from: "bot", text: "👋 Welcome! I’m your AI Loan Assistant. What is your monthly salary?" }
+    { from: "bot", text: "Welcome. Please enter your Customer ID." }
   ]);
 
   const [input, setInput] = useState("");
-  const [step, setStep] = useState("salary");
+  const [step, setStep] = useState("customerId");
 
-  const [data, setData] = useState({
+  const [formData, setFormData] = useState({
+    customerId: "",
     salary: 0,
     amount: 0,
-    tenure: 0,
-    creditScore: 0,
-    preApproved: 500000
+    tenure: 0
   });
 
-  const add = (from, text) =>
-    setMessages((m) => [...m, { from, text }]);
+  const [sanction, setSanction] = useState(null);
 
-  /* -------------------- AGENTS -------------------- */
-
-  const kycAgent = () => ({ status: "Verified" });
-
-  const creditAgent = () => ({ score: 760 });
-
-  const underwritingAgent = ({ salary, amount, creditScore, preApproved }) => {
-    if (creditScore < 700) return { status: "REJECT", reason: "Low credit score" };
-
-    if (amount <= preApproved) return { status: "INSTANT_APPROVAL" };
-
-    if (amount > 2 * preApproved)
-      return { status: "REJECT", reason: "Amount exceeds eligibility" };
-
-    const emi = amount / 36;
-    if (emi > salary * 0.5)
-      return { status: "REJECT", reason: "EMI exceeds 50% salary" };
-
-    return { status: "CONDITIONAL_APPROVAL" };
+  const addMessage = (from, text) => {
+    setMessages((prev) => [...prev, { from, text }]);
   };
 
-  /* -------------------- CHAT FLOW -------------------- */
-
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input) return;
-    add("user", input);
 
-    /* SALES AGENT */
-    if (step === "salary") {
-      setData((d) => ({ ...d, salary: Number(input) }));
-      add("bot", "How much loan amount do you need?");
+    addMessage("user", input);
+
+    /* CUSTOMER ID */
+    if (step === "customerId") {
+      setFormData((d) => ({ ...d, customerId: input }));
+      addMessage("bot", "Enter your monthly salary.");
+      setStep("salary");
+    }
+
+    /* SALARY */
+    else if (step === "salary") {
+      setFormData((d) => ({ ...d, salary: Number(input) }));
+      addMessage("bot", "Enter required loan amount.");
       setStep("amount");
     }
 
+    /* LOAN AMOUNT */
     else if (step === "amount") {
-      setData((d) => ({ ...d, amount: Number(input) }));
-      add("bot", "What tenure do you prefer (months)?");
+      setFormData((d) => ({ ...d, amount: Number(input) }));
+      addMessage("bot", "Enter preferred tenure in months.");
       setStep("tenure");
     }
 
-    /* VERIFICATION AGENT */
+    /* TENURE → BACKEND CALL */
     else if (step === "tenure") {
-      setData((d) => ({ ...d, tenure: Number(input) }));
-      add("bot", "Verifying KYC...");
-      setTimeout(() => {
-        const kyc = kycAgent();
-        add("bot", `KYC Status: ${kyc.status}`);
-        add("bot", "Checking credit score...");
-        setStep("credit");
-      }, 800);
-    }
+      const payload = { ...formData, tenure: Number(input) };
+      setFormData(payload);
 
-    /* UNDERWRITING AGENT */
-    else if (step === "credit") {
-      setTimeout(() => {
-        const credit = creditAgent();
-        add("bot", `Credit Score: ${credit.score}`);
+      addMessage("bot", "Processing your loan application.");
 
-        const decision = underwritingAgent({
-          ...data,
-          creditScore: credit.score
-        });
+      try {
+        const response = await axios.post(
+          "http://localhost:5000/api/loan/apply",
+          payload
+        );
 
-        if (decision.status === "REJECT") {
-          add("bot", `❌ Loan Rejected: ${decision.reason}`);
+        const result = response.data;
+
+        if (result.status === "REJECT") {
+          addMessage("bot", `Loan rejected. Reason: ${result.reason}`);
           setStep("done");
-          return;
         }
 
-        if (decision.status === "INSTANT_APPROVAL") {
-          add("bot", "✅ Instant Approval! Generating sanction letter...");
-          setStep("approved");
-          return;
-        }
-
-        if (decision.status === "CONDITIONAL_APPROVAL") {
-          add("bot", "📄 Please upload your salary slip for final approval.");
+        else if (result.status === "CONDITIONAL_APPROVAL") {
+          addMessage("bot", "Conditional approval granted.");
+          addMessage("bot", "Please upload salary slip to proceed.");
+          addMessage("bot", "Type 'uploaded' after upload.");
           setStep("salarySlip");
         }
-      }, 1000);
+
+        else if (result.status === "APPROVED") {
+          addMessage("bot", "Loan approved. Generating sanction letter.");
+          setSanction(result.sanction);
+          setStep("approved");
+        }
+
+      } catch (error) {
+        addMessage("bot", "Server error. Please try again later.");
+        setStep("done");
+      }
     }
 
-    /* CONDITIONAL APPROVAL */
+    /* SALARY SLIP CONFIRMATION */
     else if (step === "salarySlip") {
-      add("bot", "Salary slip received ✅");
-      add("bot", "Final approval granted. Generating sanction letter...");
+      addMessage("bot", "Salary slip received.");
+      addMessage("bot", "Final approval granted.");
+
+      setSanction({
+        loanAmount: formData.amount,
+        tenure: formData.tenure,
+        interestRate: "10.5%",
+        status: "APPROVED"
+      });
+
       setStep("approved");
     }
 
     setInput("");
   };
 
-  /* -------------------- UI -------------------- */
-
   return (
     <div className="app-container">
-      <h2 className="title">🤖 Agentic AI Loan Chatbot</h2>
-
+      <div className="container-upper">
+      
+       <FontAwesomeIcon icon={faBackward} onClick={() => navigate('/')} className="icon" />
+      <h2 className="title">Agentic AI Loan Chatbot</h2>
+      </div>
       <div className="chat-box">
-        {messages.map((m, i) => (
-          <div key={i} className={`row ${m.from}`}>
-            <span className={`msg ${m.from}`}>{m.text}</span>
+        {messages.map((msg, index) => (
+          <div key={index} className={`row ${msg.from}`}>
+            <span className={`msg ${msg.from}`}>{msg.text}</span>
           </div>
         ))}
       </div>
@@ -131,19 +130,19 @@ export default function App() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Type here..."
+            placeholder="Type here"
           />
           <button onClick={handleSend}>Send</button>
         </div>
       )}
 
-      {step === "approved" && (
+      {step === "approved" && sanction && (
         <div className="sanction-box">
-          <h3>✅ Sanction Letter</h3>
-          <p><b>Loan Amount:</b> ₹{data.amount}</p>
-          <p><b>Tenure:</b> {data.tenure} months</p>
-          <p><b>Interest Rate:</b> 10.5%</p>
-          <p><b>Status:</b> Approved</p>
+          <h3>Sanction Letter</h3>
+          <p><b>Loan Amount:</b> {sanction.loanAmount}</p>
+          <p><b>Tenure:</b> {sanction.tenure} months</p>
+          <p><b>Interest Rate:</b> {sanction.interestRate}</p>
+          <p><b>Status:</b> {sanction.status}</p>
         </div>
       )}
     </div>

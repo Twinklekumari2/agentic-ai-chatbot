@@ -9,33 +9,25 @@ const sanctionAgent = require("../agent/sanctionAgent");
 
 const { getPreApprovedLimit } = require("../mock/offerMart");
 
-/**
- * MASTER AGENT – Orchestrates everything
- */
 router.post("/apply", (req, res) => {
   const { customerId, salary, amount, tenure } = req.body;
 
-  /* SALES AGENT */
   const salesData = salesAgent.captureRequirements(salary, amount, tenure);
 
-/* VERIFICATION AGENT */
-const kyc = verificationAgent.verifyKYC(customerId);
+  const kyc = verificationAgent.verifyKYC(customerId);
 
-if (kyc.status === "NOT_FOUND") {
-  return res.json({ status: "REJECT", reason: "Customer not found" });
-}
+  if (kyc.status === "NOT_FOUND") {
+     return res.json({ status: "REJECT", reason: "Customer not found" });
+  }
 
-if (kyc.status !== "VERIFIED") {
-  return res.json({ status: "REJECT", reason: "KYC Failed" });
-}
+  if (kyc.status !== "VERIFIED") {
+     return res.json({ status: "REJECT", reason: "KYC Failed" });
+  }
 
-  /* CREDIT AGENT */
   const credit = creditAgent.fetchCreditScore(kyc.pan);
 
-  /* OFFER MART */
   const offer = getPreApprovedLimit(customerId);
 
-  /* UNDERWRITING AGENT */
   const decision = underwritingAgent.underwrite({
     salary: salesData.salary,
     amount: salesData.amount,
@@ -54,10 +46,6 @@ if (kyc.status !== "VERIFIED") {
     });
   }
 
-
-
-
-  /* SANCTION */
   const sanction = sanctionAgent.generateSanctionLetter(salesData);
 
   res.json({

@@ -1,0 +1,40 @@
+.about-page{
+    margin-top: 12vh;
+    /* border: 2px solid red; */
+    /* width: 100%; */
+    padding: 2rem 4rem;
+    color: #000;
+}
+.about-container p{
+    font-size: 1.1rem;
+}
+
+.about-img {
+    /* border: 2px solid red; */
+    padding: 1rem 0;
+  /* width: 100%; */
+  margin-top: 2vh;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* border: 2px solid red; */
+}
+.para{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.para p{
+    width: 50%;
+}
+
+.about-img img {
+  width: 100%;
+  max-width: 600px;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+  opacity: 1;
+}
